@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<title>raycastingJS</title>
+<body style='background-color:#777777; margin:0px; height:100vh; display:flex; align-items:center; justify-content:center;' onkeydown='move(event.keyCode);' onkeyup='stop(event.keyCode);'>
+<canvas id=canvas width=780 height=510 style='border:16px solid #ffffff; border-radius:16px;'></canvas>
+</body>
+<script>
+ctx=document.getElementById('canvas').getContext('2d');
+
+WIDTH=780;
+HEIGHT=510;
+HALF_HEIGHT=HEIGHT/2;
+TILE=30;
+FOV=Math.PI/3;
+HALF_FOV=FOV/2;
+NUM_RAYS=80;
+MAX_DEPTH=600;
+DELTA_ANGLE=FOV/NUM_RAYS;
+DIST=NUM_RAYS/(2*Math.tan(HALF_FOV));
+PROJ_COEFF=3*DIST*TILE;
+SCALE=WIDTH/NUM_RAYS;
+
+player_pos=[TILE*1.5,TILE*1.5];
+player_angle=0;
+player_speed=TILE/30;
+
+up_pressed=false;
+down_pressed=false;
+left_pressed=false;
+right_pressed=false;
+
+function stop(t){
+	if(t==37)left_pressed=false;
+	if(t==38)up_pressed=false;
+	if(t==39)right_pressed=false;
+	if(t==40)down_pressed=false;
+}
+
+function move(t){
+	if(t==37)left_pressed=true;
+	if(t==38)up_pressed=true;
+	if(t==39)right_pressed=true;
+	if(t==40)down_pressed=true;
+}
+
+text_map=[ // every 'w' is a block (4 walls)
+['w','w','w','w','w','w','w','w','w','w','w','w'],
+['w','.','.','.','.','.','.','w','.','.','.','w'],
+['w','.','.','w','w','w','.','.','.','w','.','w'],
+['w','.','.','.','.','w','.','.','w','w','.','w'],
+['w','.','.','w','.','.','.','.','.','.','.','w'],
+['w','.','.','w','.','.','.','w','w','w','.','w'],
+['w','w','.','.','.','w','.','.','.','.','.','w'],
+['.','w','w','w','w','w','w','w','w','w','w','w']
+];
+
+world_map=[];
+for(j=0;j<text_map.length;j++)for(i=0;i<text_map[0].length;i++)if(text_map[j][i]=='w')world_map.push([i*TILE,j*TILE]);
+
+function gameLoop(){
+	if(up_pressed&&text_map[parseInt((player_pos[1]+(player_speed*Math.sin(player_angle)))/TILE)][parseInt((player_pos[0]+(player_speed*Math.cos(player_angle)))/TILE)]!='w'){
+		player_pos[0]+=player_speed*Math.cos(player_angle);
+ 		player_pos[1]+=player_speed*Math.sin(player_angle);
+	}
+	if(down_pressed&&text_map[parseInt((player_pos[1]+(-player_speed*Math.sin(player_angle)))/TILE)][parseInt((player_pos[0]+(-player_speed*Math.cos(player_angle)))/TILE)]!='w'){
+		player_pos[0]-=player_speed*Math.cos(player_angle);
+ 		player_pos[1]-=player_speed*Math.sin(player_angle);
+	}
+	if(left_pressed)player_angle-=0.03;
+	if(right_pressed)player_angle+=0.03;
+
+	ctx.fillStyle="#555578";
+	ctx.fillRect(0,0,WIDTH,HALF_HEIGHT);
+	ctx.fillStyle="#44443f";
+	ctx.fillRect(0,HALF_HEIGHT,WIDTH,HALF_HEIGHT);
+	
+	cur_angle=player_angle-HALF_FOV;
+	for(ray=0;ray<NUM_RAYS;ray++){
+		sin_a=Math.sin(cur_angle);
+		cos_a=Math.cos(cur_angle);
+		for(depth=0;depth<MAX_DEPTH;depth++){
+			wall=false;
+			search=[parseInt((player_pos[0]+depth*cos_a)/TILE)*TILE,parseInt((player_pos[1]+depth*sin_a)/TILE)*TILE];
+			for(n=0;n<world_map.length;n++)if(search[0]==world_map[n][0]&&search[1]==world_map[n][1])wall=true;
+			if(wall){
+				depth*=Math.cos(player_angle-cur_angle);
+				proj_height=Math.min(PROJ_COEFF/(depth+0.0001),HEIGHT);
+				c=255/(1+depth*depth*0.0001);
+				ctx.fillStyle="#"+parseInt(c).toString(16)+parseInt(c).toString(16)+parseInt(c).toString(16);
+				ctx.fillRect(ray*SCALE,HALF_HEIGHT-proj_height/2,SCALE,proj_height);
+				break;
+			}
+		}
+		cur_angle+=DELTA_ANGLE;
+	}
+	setTimeout('gameLoop()',10);
+}
+gameLoop();
+</script>
+</html>
